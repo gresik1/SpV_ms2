@@ -2,6 +2,7 @@ from tkinter import *
 from Constants import *
 from PIL import ImageTk, Image
 from copy import copy
+import random
 
 
 class CommandItem:
@@ -30,6 +31,12 @@ class CommandItem:
         self.box_coords = (x0, y0, x1, y1)
         self.id = self.canvas.create_rectangle(self.box_coords, fill='ghost white', outline='#696969', width=3)
 
+    def change_state(self, state):
+        if state == 1:
+            self.canvas.itemconfig(self.id, fill='red')
+        else:
+            self.canvas.itemconfig(self.id, fill='ghost white')
+
 
 class Playground(Tk):
 
@@ -53,6 +60,9 @@ class Playground(Tk):
         self.obj_id = None
         self.obj_tag = None
 
+        self.hills_array = []
+        self.level = 1
+
         # nacitanie obrazkov
         self.background_image_source = Image.open(BACKGROUND)
         self.background_image = ImageTk.PhotoImage(self.background_image_source)
@@ -68,6 +78,9 @@ class Playground(Tk):
 
         self.hill_image_source = Image.open(HILL).resize(HILL_SIZE, Image.ANTIALIAS)
         self.hill_image = ImageTk.PhotoImage(self.hill_image_source)
+
+        self.collectible_carrot_source = Image.open(CARROT).resize(CARROT_SIZE, Image.ANTIALIAS)
+        self.collectible_carrot_image = ImageTk.PhotoImage(self.collectible_carrot_source)
 
         # pozicie panelov
         self.command_panel_coord_x0 = 0
@@ -90,6 +103,21 @@ class Playground(Tk):
         self.scene_panel_coord_y_center = self.background_image.height() / 2 + self.command_panel_coord_y1
 
         self.set_graphical_elements()
+        self.define_level()
+
+    def define_level(self):
+        # print(LEVELS[self.level])
+        item = LEVELS[self.level]
+        carrot_count = item[1]
+        for i in range(item[0]):
+            self.hills_array.append(None)
+
+        while carrot_count > 0:
+            r = random.randrange(1, item[0])
+            if self.hills_array[r] is None:
+                self.hills_array[r] = True
+                carrot_count -= 1
+        self.set_hills_and_tractor()
 
 
     def configure_main_window(self):
@@ -134,16 +162,26 @@ class Playground(Tk):
         self.playground.create_text((900, 510), text=CARROTS_COUNT + ':', font=FONT_TYPE_2)
         self.playground.create_text((900, 550), text='0/3', font=FONT_TYPE_2)
 
-        self.tractor_image_id = self.playground.create_image((265, 410), image=self.vehicle_image, tag='tractor')
 
-        self.hill_image_id = self.playground.create_image((250,
-                                                           550), image=self.hill_image)
-
-        self.hill_image_id = self.playground.create_image((400,
-                                                           550), image=self.hill_image)
-
-        self.hill_image_id = self.playground.create_image((550,
-                                                           550), image=self.hill_image)
+    def set_hills_and_tractor(self):
+        # spravit pocitanie kde sa ma zacat vykreslovat
+        # o to x sa bude posuvat aj traktor
+        # x, y = daco, daco
+        x = 800 // len(self.hills_array)
+        # print(len(self.hills_array))
+        print('x kde idem vykreslit traktor', x)
+        self.tractor_image_id = self.playground.create_image((x, 410), image=self.vehicle_image, tag='tractor')
+        # self.rec = self.playground.create_rectangle(0, 450, 800, 470, fill='red')
+        for i in range(len(self.hills_array)):
+            # print(i)
+            if self.hills_array[i] == True:
+                print('x kde idem vykreslit mrkvu', x)
+                self.collectible_carrot_image_id = self.playground.create_image((x, 450),
+                                                                                image=self.collectible_carrot_image,
+                                                                                tag='carrot')
+            print('x kde idem vykreslit kopec', x)
+            self.hill_image_id = self.playground.create_image((x, 520), image=self.hill_image)
+            x += 150
 
     def create_image(self, center_x, center_y, _tag=None):
         image_id = self.playground.create_image((center_x, center_y))
@@ -372,15 +410,21 @@ class Playground(Tk):
             if self.commands_list[i].command_type == 'forward':
                 self.tractor_start_x = self.playground.coords('tractor')[0]
                 # self.playground.move('tractor', 150, 0)
+                # for j in range(150):
+                #     self.playground.move('tractor', 1, 0)
+                self.commands_list[i].change_state(1)
                 self.tractor_move()
+                self.commands_list[i].change_state(2)
                 print('pohol sa o forward')
             elif self.commands_list[i].command_type == 'collect':
+                self.commands_list[i].change_state(1)
                 print('skusil som zobrat mrkvu')
                 self.try_pickup_carrot()
+                self.commands_list[i].change_state(2)
 
     def tractor_move(self):
         from time import sleep
-        while self.playground.coords('tractor')[0] <= self.tractor_start_x + 150:
+        while self.playground.coords('tractor')[0] < self.tractor_start_x + 150:
             self.playground.move('tractor', 2, 0)
             # self.playground.after(30, self.tractor_move)
             self.playground.update()
